@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "apps.core.middleware.SecurityHeadersMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -134,7 +135,42 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "UNAUTHENTICATED_USER": None,
+    # Per-scope limits for the sign-in endpoints (apps.core.throttling). Format: N/second,
+    # N/minute, N/hour or N/day. Counters are kept in the shared cache (CACHES below).
+    "DEFAULT_THROTTLE_RATES": {
+        "auth_login": env("THROTTLE_AUTH_LOGIN", default="20/minute"),
+        "auth_login_account": env("THROTTLE_AUTH_LOGIN_ACCOUNT", default="10/minute"),
+        "auth_register": env("THROTTLE_AUTH_REGISTER", default="10/hour"),
+        "auth_refresh": env("THROTTLE_AUTH_REFRESH", default="120/minute"),
+        "auth_password": env("THROTTLE_AUTH_PASSWORD", default="5/minute"),
+    },
+    # Number of trusted reverse proxies (load balancer, ingress) in front of the API, used
+    # to read the client IP from X-Forwarded-For. Leave unset when clients connect directly;
+    # setting it too high lets clients spoof their IP and dodge per-IP limits.
+    "NUM_PROXIES": int(env("NUM_PROXIES", default="") or 0) or None,
 }
+
+# --- Cache ------------------------------------------------------------------------------
+# Shared by every replica: rate-limit counters must be global, not per process.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": env("CACHE_URL", default=REDIS_URL),
+        "KEY_PREFIX": "opsdesk",
+        "TIMEOUT": 300,
+        "OPTIONS": {
+            "socket_connect_timeout": REDIS_SOCKET_TIMEOUT,
+            "socket_timeout": REDIS_SOCKET_TIMEOUT,
+        },
+    }
+}
+
+# --- Security headers (all environments) ------------------------------------------------
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+APP_VERSION = env("APP_VERSION", default="")
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "OpsDesk API",

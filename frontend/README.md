@@ -43,6 +43,24 @@ Runtime config wins over the build-time value. Keep the default relative `/api/v
 app and API are served from the same host, which is what the refresh cookie expects. If the API
 is on another origin, add this app's origin to the API's `CORS_ALLOWED_ORIGINS`.
 
+## Hosting the build
+
+`npm run build` writes plain files to `dist/`. Any static server works, with two settings:
+
+- **SPA fallback:** serve `index.html` for any path that isn't a file, so deep links like
+  `/incidents/42` load the app.
+- **Caching:** cache `assets/*` (content-hashed names) for a long time; serve `index.html` and
+  `config.js` with `Cache-Control: no-cache` so new releases and config changes are picked up.
+
+Recommended response headers from the static server:
+
+```
+Content-Security-Policy: default-src 'self'; connect-src 'self' <API origin if different>; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+X-Content-Type-Options: nosniff
+Referrer-Policy: same-origin
+X-Frame-Options: DENY
+```
+
 ## How sign-in works
 
 - **Login** (`POST /auth/token/`) returns a short-lived access token in the body and sets the
