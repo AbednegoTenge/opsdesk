@@ -75,6 +75,9 @@ class Incident(models.Model):
     resolved_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
     last_reminded_at = models.DateTimeField(null=True, blank=True)
+    # Set once by the SLA monitor; each target is flagged (and announced) at most once.
+    response_breached_at = models.DateTimeField(null=True, blank=True)
+    resolution_breached_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

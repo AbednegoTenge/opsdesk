@@ -72,10 +72,23 @@ class TestCeleryConfig:
         assert app.conf.task_reject_on_worker_lost is True
         assert app.conf.worker_prefetch_multiplier == 1
 
-    def test_outbox_sweep_is_scheduled(self):
-        entry = settings.CELERY_BEAT_SCHEDULE["dispatch-outbox"]
-        assert entry["task"] == "outbox.dispatch_pending"
-        assert entry["task"] in app.tasks
+    def test_periodic_tasks_are_scheduled_and_registered(self):
+        schedule = settings.CELERY_BEAT_SCHEDULE
+        assert {e["task"] for e in schedule.values()} == {
+            "outbox.dispatch_pending",
+            "sla.check_breaches",
+            "sla.send_reminders",
+            "reporting.schedule_periodic_report",
+        }
+        for entry in schedule.values():
+            assert entry["task"] in app.tasks
+        assert schedule["daily-report"]["kwargs"] == {"kind": "daily"}
+        assert schedule["weekly-report"]["kwargs"] == {"kind": "weekly"}
+
+    def test_sla_and_reports_go_to_their_own_queues(self):
+        router = app.amqp.router
+        assert router.route({}, "sla.check_breaches")["queue"].name == "sla"
+        assert router.route({}, "reporting.generate_report")["queue"].name == "reports"
 
     @pytest.mark.parametrize(
         "name", ["notifications.notify_incident_event", "notifications.deliver"]

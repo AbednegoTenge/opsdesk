@@ -67,7 +67,13 @@ def compute_due_times(priority: str, opened_at) -> DueTimes:
 
 
 # Events that people are notified about. The task is published only after commit.
-NOTIFY_ON = {EventType.CREATED, EventType.ASSIGNED, EventType.PRIORITY_CHANGED}
+NOTIFY_ON = {
+    EventType.CREATED,
+    EventType.ASSIGNED,
+    EventType.PRIORITY_CHANGED,
+    EventType.SLA_BREACHED,
+    EventType.REMINDER_SENT,
+}
 
 
 def _event(incident: Incident, actor: User | None, event_type: str, **data) -> IncidentEvent:
@@ -77,6 +83,11 @@ def _event(incident: Incident, actor: User | None, event_type: str, **data) -> I
     if event_type in NOTIFY_ON:
         outbox.enqueue("notifications.notify_incident_event", event_id=event.pk)
     return event
+
+
+def record_system_event(incident: Incident, event_type: str, **data) -> IncidentEvent:
+    """History entry written by a background job (no human actor). Call inside a transaction."""
+    return _event(incident, None, event_type, **data)
 
 
 def _lock(incident_id: int) -> Incident:

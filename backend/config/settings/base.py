@@ -8,6 +8,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -32,6 +33,8 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.incidents",
     "apps.notifications",
+    "apps.sla",
+    "apps.reporting",
     "opsdesk_tasks",
 ]
 
@@ -138,6 +141,13 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
+    # Several models have a "status"/"kind" field with different choices; name them apart.
+    "ENUM_NAME_OVERRIDES": {
+        "IncidentStatusEnum": "apps.incidents.models.Status",
+        "ReportStatusEnum": "apps.reporting.models.ReportStatus",
+        "ReportKindEnum": "apps.reporting.models.ReportKind",
+        "NotificationKindEnum": "apps.notifications.models.Kind",
+    },
 }
 
 # --- Email ----------------------------------------------------------------
@@ -177,12 +187,35 @@ CELERY_BEAT_SCHEDULE_FILENAME = env(
     "CELERY_BEAT_SCHEDULE_FILENAME",
     default="/tmp/opsdesk-celerybeat-schedule",  # noqa: S108
 )
+REPORT_HOUR_UTC = env.int("REPORT_HOUR_UTC", default=7)
 CELERY_BEAT_SCHEDULE = {
     "dispatch-outbox": {
         "task": "outbox.dispatch_pending",
         "schedule": env.int("OUTBOX_SWEEP_INTERVAL_SECONDS", default=60),
     },
+    "check-sla": {
+        "task": "sla.check_breaches",
+        "schedule": env.int("SLA_CHECK_INTERVAL_SECONDS", default=60),
+        # A late run is pointless once the next one is due.
+        "options": {"expires": env.int("SLA_CHECK_INTERVAL_SECONDS", default=60)},
+    },
+    "send-reminders": {
+        "task": "sla.send_reminders",
+        "schedule": env.int("REMINDER_CHECK_INTERVAL_SECONDS", default=300),
+        "options": {"expires": env.int("REMINDER_CHECK_INTERVAL_SECONDS", default=300)},
+    },
+    "daily-report": {
+        "task": "reporting.schedule_periodic_report",
+        "schedule": crontab(minute=0, hour=REPORT_HOUR_UTC),
+        "kwargs": {"kind": "daily"},
+    },
+    "weekly-report": {
+        "task": "reporting.schedule_periodic_report",
+        "schedule": crontab(minute=0, hour=REPORT_HOUR_UTC, day_of_week="mon"),
+        "kwargs": {"kind": "weekly"},
+    },
 }
+CELERY_TIMEZONE = "UTC"
 
 # Task retry policy for transient failures (opsdesk_tasks.base.OpsDeskTask).
 TASK_MAX_RETRIES = env.int("TASK_MAX_RETRIES", default=5)
