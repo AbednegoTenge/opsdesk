@@ -29,7 +29,7 @@ app.conf.task_routes = {
     "reporting.*": {"queue": "reports"},
 }
 
-app.autodiscover_tasks(["apps.notifications", "opsdesk_tasks"])
+app.autodiscover_tasks(["apps.notifications", "apps.sla", "apps.reporting", "opsdesk_tasks"])
 
 # Worker liveness heartbeat (see opsdesk_tasks/health.py).
 from opsdesk_tasks.health import WorkerHeartbeat  # noqa: E402

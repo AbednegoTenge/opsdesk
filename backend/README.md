@@ -2,7 +2,7 @@
 
 Django REST API (and, from milestone 3, the Celery worker and Beat processes) for OpsDesk.
 
-## What is here (milestones 1 to 3)
+## What is here (milestones 1 to 4)
 
 | Area | Where |
 | --- | --- |
@@ -18,6 +18,8 @@ Django REST API (and, from milestone 3, the Celery worker and Beat processes) fo
 | Celery app, queues, routes, Beat schedule | `config/celery.py`, `CELERY_*` in `config/settings/base.py` |
 | Base task (retries, backoff, logging), outbox, worker/Beat health | `opsdesk_tasks/` |
 | Notification tasks, channels, in-app notifications API | `apps/notifications/` |
+| SLA monitor and reminders | `apps/sla/` |
+| Incident summary reports and reports API | `apps/reporting/` |
 
 ## Incident rules
 
@@ -118,6 +120,22 @@ python -m opsdesk_tasks.healthcheck beat --max-age 60
 ```
 
 This catches a process that is alive but stuck, not just one that has exited.
+
+### Scheduled work (Celery Beat)
+
+| Task | Default schedule | Queue | What it does | Why it never doubles up |
+| --- | --- | --- | --- | --- |
+| `outbox.dispatch_pending` | every 60 s | notifications | publishes tasks that missed their on-commit publish | `SKIP LOCKED` row claim |
+| `sla.check_breaches` | every 60 s | sla | flags open incidents past their response or resolution target, records an `sla_breached` event, notifies the assignee and Admins; marks incidents 75% through their resolution window as `at_risk` | conditional `UPDATE ... WHERE <target>_breached_at IS NULL`; only the run that changed the row writes the event |
+| `sla.send_reminders` | every 5 min | sla | reminds the assignee (or Admins if unassigned) about unresolved incidents whose priority has a reminder interval (Critical 30 min, High 60 min by default) | conditional `UPDATE` of `last_reminded_at`; at most one reminder per incident per interval |
+| `reporting.schedule_periodic_report` | daily and Monday at `REPORT_HOUR_UTC` | reports | creates the report for the previous day or week and queues generation; emails Admins a summary | unique `(kind, period_start, period_end)`; a rerun returns the existing report |
+
+The response target is met when the incident is first acknowledged (moved to In Progress or
+Resolved). A breach stays on the record after the incident is resolved.
+
+On-demand reports: `POST /api/v1/reports/` (Admin) with `period_start` and `period_end` returns
+`202` immediately with the report id; a worker fills it in and `GET /api/v1/reports/{id}/`
+shows `status: completed` and the data. Asking for the same period again returns the same report.
 
 For local debugging without a worker, `CELERY_TASK_ALWAYS_EAGER=true` runs tasks inline.
 

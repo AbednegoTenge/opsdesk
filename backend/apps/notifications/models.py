@@ -8,6 +8,7 @@ class Kind(models.TextChoices):
     PRIORITY_CHANGED = "priority_changed", "Priority changed"
     SLA_BREACHED = "sla_breached", "SLA breached"
     REMINDER = "reminder", "Reminder"
+    REPORT = "report", "Report"
 
 
 class Channel(models.TextChoices):
