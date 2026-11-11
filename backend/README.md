@@ -2,7 +2,7 @@
 
 Django REST API (and, from milestone 3, the Celery worker and Beat processes) for OpsDesk.
 
-## What is here (milestones 1 to 4)
+## What is here (milestones 1 to 5)
 
 | Area | Where |
 | --- | --- |
@@ -20,6 +20,7 @@ Django REST API (and, from milestone 3, the Celery worker and Beat processes) fo
 | Notification tasks, channels, in-app notifications API | `apps/notifications/` |
 | SLA monitor and reminders | `apps/sla/` |
 | Incident summary reports and reports API | `apps/reporting/` |
+| Dashboard figures | `apps/reporting/dashboard.py` |
 
 ## Incident rules
 
@@ -180,6 +181,17 @@ ruff check . && ruff format --check .
 | `GET /health/ready` | can serve traffic | PostgreSQL does not answer `SELECT 1` within `HEALTH_DB_TIMEOUT_MS` |
 
 `/health/ready` also reports Redis, but does not fail on it (see the auth notes above).
+
+## Dashboard endpoints
+
+All roles can read these. Each is a fixed number of aggregate queries (tests assert the limit),
+so they stay fast as incidents grow.
+
+| Path | Returns |
+| --- | --- |
+| `GET /api/v1/dashboard/summary/` | total, active, counts by status, active by priority, critical (total and active), unassigned active, SLA breached and at-risk active |
+| `GET /api/v1/dashboard/by-assignee/?days=30` | per active Engineer/Admin: active, in progress, critical active, breached active, resolved in the last `days`; busiest first; plus unassigned active |
+| `GET /api/v1/dashboard/trends/?days=30` | one row per UTC day (oldest first, empty days as zeros): created, resolved, SLA breaches; totals; mean time to resolve. `days` is 1 to 365 |
 
 ## API docs
 

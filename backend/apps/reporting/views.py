@@ -1,11 +1,13 @@
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
-from rest_framework import mixins, status, viewsets
+from rest_framework import mixins, serializers, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.core.permissions import IsAdmin, IsEngineerOrAdmin
 
-from . import services
+from . import dashboard, services
 from .models import IncidentReport, ReportKind
 from .serializers import IncidentReportSerializer, ReportListSerializer, ReportRequestSerializer
 
@@ -45,3 +47,33 @@ class ReportViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
             IncidentReportSerializer(report).data,
             status=status.HTTP_202_ACCEPTED if created else status.HTTP_200_OK,
         )
+
+
+class DashboardQuerySerializer(serializers.Serializer):
+    days = serializers.IntegerField(min_value=1, max_value=365, default=30)
+
+
+class DashboardViewSet(viewsets.ViewSet):
+    """Read-only figures for the dashboard. Every role can see them."""
+
+    permission_classes = [IsAuthenticated]
+
+    def _days(self, request) -> int:
+        s = DashboardQuerySerializer(data=request.query_params)
+        s.is_valid(raise_exception=True)
+        return s.validated_data["days"]
+
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        return Response(dashboard.summary())
+
+    @extend_schema(parameters=[DashboardQuerySerializer], responses=OpenApiTypes.OBJECT)
+    @action(detail=False, methods=["get"], url_path="by-assignee")
+    def by_assignee(self, request):
+        return Response(dashboard.by_assignee(self._days(request)))
+
+    @extend_schema(parameters=[DashboardQuerySerializer], responses=OpenApiTypes.OBJECT)
+    @action(detail=False, methods=["get"])
+    def trends(self, request):
+        return Response(dashboard.trends(self._days(request)))
