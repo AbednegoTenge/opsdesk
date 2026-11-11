@@ -1,8 +1,9 @@
 # OpsDesk backend
 
-Django REST API (and, from milestone 3, the Celery worker and Beat processes) for OpsDesk.
+Django REST API, Celery worker and Celery Beat processes for OpsDesk. Design documents are in
+[`../docs/`](../docs/).
 
-## What is here (milestones 1 to 5)
+## What is here
 
 | Area | Where |
 | --- | --- |
@@ -21,6 +22,7 @@ Django REST API (and, from milestone 3, the Celery worker and Beat processes) fo
 | SLA monitor and reminders | `apps/sla/` |
 | Incident summary reports and reports API | `apps/reporting/` |
 | Dashboard figures | `apps/reporting/dashboard.py` |
+| Sign-in rate limits, security headers | `apps/core/throttling.py`, `apps/core/middleware.py` |
 
 ## Incident rules
 
@@ -172,6 +174,34 @@ ruff check . && ruff format --check .
   stops at once if the user is deactivated).
 * If Redis is down, login, refresh and logout return 503. Requests with a valid access token keep
   working because verification needs only the shared `JWT_SIGNING_KEY`.
+
+## Rate limits
+
+Sign-in endpoints are throttled with counters in the shared Redis cache (`CACHE_URL`), so the
+limits hold across every API replica. If that cache is unreachable the throttles allow the
+request and log a warning rather than locking everyone out. A throttled request gets 429
+`throttled` with `Retry-After`.
+
+| Scope | Default | Variable |
+| --- | --- | --- |
+| Sign-in per IP | 20/minute | `THROTTLE_AUTH_LOGIN` |
+| Sign-in per account (any IP) | 10/minute | `THROTTLE_AUTH_LOGIN_ACCOUNT` |
+| Refresh per IP | 120/minute | `THROTTLE_AUTH_REFRESH` |
+| Registration per IP | 10/hour | `THROTTLE_AUTH_REGISTER` |
+| Password change per user | 5/minute | `THROTTLE_AUTH_PASSWORD` |
+
+Behind a load balancer or ingress, set `NUM_PROXIES` to the number of trusted proxies so the
+client IP comes from `X-Forwarded-For`; otherwise every request appears to come from the
+proxy and shares one per-IP budget.
+
+## Security headers
+
+Every response carries `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`
+(except the Swagger page), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+`Referrer-Policy: same-origin`, `Cross-Origin-Opener-Policy: same-origin` and a restrictive
+`Permissions-Policy`. API and health responses are `Cache-Control: no-store`, so tokens and
+incident data are never cached. `config.settings.prod` adds HSTS (`SECURE_HSTS_SECONDS`) and
+optional HTTPS redirect, trusting `X-Forwarded-Proto` from the proxy.
 
 ## Health checks
 

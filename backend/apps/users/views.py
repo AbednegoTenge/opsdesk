@@ -12,6 +12,13 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.core.permissions import IsAdmin, IsEngineerOrAdmin
+from apps.core.throttling import (
+    LoginAccountThrottle,
+    LoginIPThrottle,
+    PasswordChangeThrottle,
+    RefreshThrottle,
+    RegisterThrottle,
+)
 
 from . import token_store
 from .models import User
@@ -83,6 +90,7 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
     authentication_classes: list = []
+    throttle_classes = [RegisterThrottle]
 
     def create(self, request, *args, **kwargs):
         if not settings.ALLOW_REGISTRATION:
@@ -95,6 +103,8 @@ class RegisterView(generics.CreateAPIView):
 
 
 class LoginView(PublicAuthView):
+    throttle_classes = [LoginIPThrottle, LoginAccountThrottle]
+
     @extend_schema(request=LoginSerializer, responses=AuthResponseSerializer)
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={"request": request})
@@ -109,6 +119,8 @@ class LoginView(PublicAuthView):
 
 class RefreshView(PublicAuthView):
     """Rotate the refresh token: the old one is consumed, a new pair is issued."""
+
+    throttle_classes = [RefreshThrottle]
 
     @extend_schema(request=None, responses=AuthResponseSerializer)
     def post(self, request):
@@ -167,6 +179,7 @@ class MeView(generics.RetrieveUpdateAPIView):
 
 class PasswordChangeView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [PasswordChangeThrottle]
 
     @extend_schema(request=PasswordChangeSerializer, responses={204: None})
     def post(self, request):

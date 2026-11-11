@@ -10,6 +10,16 @@ from .factories import DEFAULT_PASSWORD, UserFactory
 
 
 @pytest.fixture(autouse=True)
+def _clear_cache():
+    """Rate-limit counters must not leak between tests."""
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
+
+@pytest.fixture(autouse=True)
 def fake_redis(monkeypatch):
     """Every test gets an isolated in-memory Redis instead of a real server."""
     server = fakeredis.FakeServer()

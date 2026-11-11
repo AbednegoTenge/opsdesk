@@ -24,3 +24,6 @@ CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = False
 CELERY_BROKER_URL = "memory://"
 TASK_RETRY_BACKOFF_MAX = 0
+
+# Per-process cache: tests never need a shared one, and conftest clears it between tests.
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
