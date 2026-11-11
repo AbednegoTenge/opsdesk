@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 
 import type { Role } from "@/api/types";
 import { renderApp } from "@/test/render";
-import { backend, makeUser } from "@/test/server";
+import { HttpResponse, http } from "msw";
+
+import { page } from "@/test/fixtures";
+import { API, backend, makeUser, server } from "@/test/server";
 
 async function navLabels(role: Role) {
   backend.refreshUser = makeUser(role);
@@ -48,6 +51,7 @@ describe("role-aware navigation", () => {
 
   it("lets an admin open admin pages", async () => {
     backend.refreshUser = makeUser("admin");
+    server.use(http.get(`${API}/users/`, () => HttpResponse.json(page([]))));
     renderApp("/users");
     expect(await screen.findByRole("heading", { name: "Users" })).toBeInTheDocument();
   });

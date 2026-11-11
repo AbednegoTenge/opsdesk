@@ -5,6 +5,7 @@ import { useAuth } from "@/auth/context";
 import { ROLE_LABELS, hasRole } from "@/auth/roles";
 
 import { NAV_ITEMS } from "./navigation";
+import { NotificationBell } from "./NotificationBell";
 
 export function AppLayout() {
   const { user, logout } = useAuth();
@@ -44,6 +45,7 @@ export function AppLayout() {
           </nav>
           {user && (
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <div className="hidden text-right sm:block">
                 <div className="text-sm font-medium text-slate-900">
                   {user.full_name || user.email}

@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { renderApp } from "@/test/render";
-import { backend, makeUser } from "@/test/server";
+import { HttpResponse, http } from "msw";
+
+import { page } from "@/test/fixtures";
+import { API, backend, makeUser, server } from "@/test/server";
 
 describe("sign-in flow", () => {
   it("sends a visitor without a session to the login page", async () => {
@@ -13,6 +16,7 @@ describe("sign-in flow", () => {
 
   it("signs in and returns to the page the user asked for", async () => {
     const user = userEvent.setup();
+    server.use(http.get(`${API}/incidents/`, () => HttpResponse.json(page([]))));
     renderApp("/incidents");
 
     await user.type(await screen.findByLabelText("Email"), "engineer@opsdesk.test");
