@@ -35,6 +35,7 @@ export type Report = Omit<Schemas["IncidentReport"], "data"> & { readonly data: 
 export type ReportKind = Schemas["ReportKindEnum"];
 export type SlaPolicy = Schemas["SLAPolicy"];
 export type AdminUserUpdate = Schemas["PatchedAdminUserUpdateRequest"];
+export type AdminUserCreate = Schemas["AdminUserCreateRequest"];
 
 export type Paginated<T> = {
   count: number;

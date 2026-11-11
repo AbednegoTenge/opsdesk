@@ -1,8 +1,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 
 import { keys, users } from "@/api/resources";
-import type { AdminUserUpdate, Role, User } from "@/api/types";
+import type { AdminUserCreate, AdminUserUpdate, Role, User } from "@/api/types";
 import { useAuth } from "@/auth/context";
 import { ROLE_LABELS } from "@/auth/roles";
 import { PageHeader } from "@/components/PageHeader";
@@ -13,6 +13,105 @@ import { useDebounced } from "@/lib/useDebounced";
 
 const PAGE_SIZE = 25;
 const ROLES: Role[] = ["admin", "engineer", "viewer"];
+
+const EMPTY_FORM: AdminUserCreate = { email: "", full_name: "", role: "engineer", password: "" };
+
+function AddUserForm({ onDone }: { onDone: (created: User) => void }) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<AdminUserCreate>(EMPTY_FORM);
+  const set = (field: keyof AdminUserCreate) => (value: string) =>
+    setForm((f) => ({ ...f, [field]: value }));
+
+  const create = useMutation({
+    mutationFn: () => users.create(form),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      setForm(EMPTY_FORM);
+      onDone(created);
+    },
+  });
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    create.mutate();
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      aria-label="Add user"
+      className="mb-6 rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200"
+    >
+      <h2 className="mb-3 text-sm font-semibold text-slate-900">Add a user</h2>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="new-user-name" className="label">
+            Full name
+          </label>
+          <input
+            id="new-user-name"
+            className="input"
+            value={form.full_name}
+            onChange={(e) => set("full_name")(e.target.value)}
+          />
+        </div>
+        <div>
+          <label htmlFor="new-user-email" className="label">
+            Email
+          </label>
+          <input
+            id="new-user-email"
+            type="email"
+            required
+            className="input"
+            value={form.email}
+            onChange={(e) => set("email")(e.target.value)}
+          />
+        </div>
+        <div>
+          <label htmlFor="new-user-role" className="label">
+            Role
+          </label>
+          <select
+            id="new-user-role"
+            className="input"
+            value={form.role}
+            onChange={(e) => set("role")(e.target.value)}
+          >
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABELS[r]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="new-user-password" className="label">
+            Temporary password
+          </label>
+          <input
+            id="new-user-password"
+            type="password"
+            autoComplete="new-password"
+            required
+            className="input"
+            value={form.password}
+            onChange={(e) => set("password")(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Share it with them privately. They can change it after signing in.
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <button type="submit" className="btn-primary" disabled={create.isPending}>
+          Create user
+        </button>
+        <InlineError error={create.error} />
+      </div>
+    </form>
+  );
+}
 
 function UserRow({ person, isSelf }: { person: User; isSelf: boolean }) {
   const queryClient = useQueryClient();
@@ -65,6 +164,8 @@ export function UsersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [created, setCreated] = useState<User | null>(null);
   const debouncedSearch = useDebounced(search);
   const params = { page, page_size: PAGE_SIZE, search: debouncedSearch || undefined, role: role || undefined };
 
@@ -76,7 +177,35 @@ export function UsersPage() {
 
   return (
     <>
-      <PageHeader title="Users" />
+      <PageHeader
+        title="Users"
+        actions={
+          <button
+            type="button"
+            className={adding ? "btn-secondary" : "btn-primary"}
+            aria-expanded={adding}
+            onClick={() => {
+              setAdding((a) => !a);
+              setCreated(null);
+            }}
+          >
+            {adding ? "Cancel" : "Add user"}
+          </button>
+        }
+      />
+      {adding && (
+        <AddUserForm
+          onDone={(person) => {
+            setAdding(false);
+            setCreated(person);
+          }}
+        />
+      )}
+      {created && (
+        <p role="status" className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-800">
+          Created {created.email} as {ROLE_LABELS[created.role]}. They can sign in now.
+        </p>
+      )}
       <p className="mb-4 text-sm text-slate-600">
         Changing someone's role or deactivating them signs them out everywhere, so their next
         sign-in picks up the change.
