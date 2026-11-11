@@ -1,0 +1,1798 @@
+openapi: 3.0.3
+info:
+  title: OpsDesk API
+  version: 1.0.0
+paths:
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      description: |-
+        Endpoints that must work without (or with a stale) access token.
+
+        They skip bearer authentication but still answer 401, not 403, on bad credentials.
+      tags:
+      - auth
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/v1/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: auth_me_partial_update
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMeUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeUpdate'
+          description: ''
+  /api/v1/auth/password/change/:
+    post:
+      operationId: auth_password_change_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/auth/register/:
+    post:
+      operationId: auth_register_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Register'
+          description: ''
+  /api/v1/auth/token/:
+    post:
+      operationId: auth_token_create
+      description: |-
+        Endpoints that must work without (or with a stale) access token.
+
+        They skip bearer authentication but still answer 401, not 403, on bad credentials.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+  /api/v1/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: 'Rotate the refresh token: the old one is consumed, a new pair
+        is issued.'
+      tags:
+      - auth
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+  /api/v1/dashboard/by-assignee/:
+    get:
+      operationId: dashboard_by_assignee_retrieve
+      description: Read-only figures for the dashboard. Every role can see them.
+      parameters:
+      - in: query
+        name: days
+        schema:
+          type: integer
+          maximum: 365
+          minimum: 1
+          default: 30
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/dashboard/summary/:
+    get:
+      operationId: dashboard_summary_retrieve
+      description: Read-only figures for the dashboard. Every role can see them.
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/dashboard/trends/:
+    get:
+      operationId: dashboard_trends_retrieve
+      description: Read-only figures for the dashboard. Every role can see them.
+      parameters:
+      - in: query
+        name: days
+        schema:
+          type: integer
+          maximum: 365
+          minimum: 1
+          default: 30
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/incidents/:
+    get:
+      operationId: incidents_list
+      parameters:
+      - in: query
+        name: assignee
+        schema:
+          type: string
+          minLength: 1
+        description: User id, 'me' or 'none'.
+      - in: query
+        name: created_after
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: created_before
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: ordering
+        schema:
+          enum:
+          - created_at
+          - -created_at
+          - updated_at
+          - -updated_at
+          - priority
+          - -priority
+          - resolve_due_at
+          - -resolve_due_at
+          type: string
+          minLength: 1
+        description: |-
+          * `created_at` - created_at
+          * `-created_at` - -created_at
+          * `updated_at` - updated_at
+          * `-updated_at` - -updated_at
+          * `priority` - priority
+          * `-priority` - -priority
+          * `resolve_due_at` - resolve_due_at
+          * `-resolve_due_at` - -resolve_due_at
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: priority
+        schema:
+          type: string
+          minLength: 1
+        description: 'Comma-separated: critical, high, medium, low'
+      - in: query
+        name: reporter
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: search
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+      - in: query
+        name: sla_status
+        schema:
+          type: string
+          minLength: 1
+        description: 'Comma-separated: ok, at_risk, breached'
+      - in: query
+        name: status
+        schema:
+          type: string
+          minLength: 1
+        description: 'Comma-separated: open, in_progress, resolved, closed'
+      tags:
+      - incidents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedIncidentListList'
+          description: ''
+    post:
+      operationId: incidents_create
+      tags:
+      - incidents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDetail'
+          description: ''
+  /api/v1/incidents/{incident_pk}/comments/{id}/:
+    patch:
+      operationId: incidents_comments_partial_update
+      description: PATCH / DELETE /incidents/{incident_pk}/comments/{pk}/ - author
+        or Admin only.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: incident_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - incidents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCommentRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+          description: ''
+    delete:
+      operationId: incidents_comments_destroy
+      description: PATCH / DELETE /incidents/{incident_pk}/comments/{pk}/ - author
+        or Admin only.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: incident_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - incidents
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/incidents/{id}/:
+    get:
+      operationId: incidents_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this incident.
+        required: true
+      tags:
+      - incidents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDetail'
+          description: ''
+    patch:
+      operationId: incidents_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this incident.
+        required: true
+      tags:
+      - incidents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedIncidentUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDetail'
+          description: ''
+    delete:
+      operationId: incidents_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this incident.
+        required: true
+      tags:
+      - incidents
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/incidents/{id}/assign/:
+    post:
+      operationId: incidents_assign_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this incident.
+        required: true
+      tags:
+      - incidents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDetail'
+          description: ''
+  /api/v1/incidents/{id}/comments/:
+    get:
+      operationId: incidents_comments_list
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this incident.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - incidents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCommentList'
+          description: ''
+    post:
+      operationId: incidents_comments_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this incident.
+        required: true
+      tags:
+      - incidents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+          description: ''
+  /api/v1/incidents/{id}/events/:
+    get:
+      operationId: incidents_events_list
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this incident.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - incidents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedIncidentEventList'
+          description: ''
+  /api/v1/incidents/{id}/transition/:
+    post:
+      operationId: incidents_transition_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this incident.
+        required: true
+      tags:
+      - incidents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDetail'
+          description: ''
+  /api/v1/notifications/:
+    get:
+      operationId: notifications_list
+      description: The current user's in-app notifications. Nobody can see anyone
+        else's.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: unread
+        schema:
+          type: boolean
+        description: Only unread
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotificationList'
+          description: ''
+  /api/v1/notifications/mark-read/:
+    post:
+      operationId: notifications_mark_read_create
+      description: The current user's in-app notifications. Nobody can see anyone
+        else's.
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkReadRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkReadResult'
+          description: ''
+  /api/v1/notifications/unread-count/:
+    get:
+      operationId: notifications_unread_count_retrieve
+      description: The current user's in-app notifications. Nobody can see anyone
+        else's.
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCount'
+          description: ''
+  /api/v1/reports/:
+    get:
+      operationId: reports_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedReportListList'
+          description: ''
+    post:
+      operationId: reports_create
+      description: Queue an on-demand report. Returns 202 at once; poll GET /reports/{id}/.
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentReport'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentReport'
+          description: ''
+  /api/v1/reports/{id}/:
+    get:
+      operationId: reports_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this incident report.
+        required: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentReport'
+          description: ''
+  /api/v1/sla-policies/:
+    get:
+      operationId: sla_policies_list
+      tags:
+      - sla-policies
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SLAPolicy'
+          description: ''
+  /api/v1/sla-policies/{priority}/:
+    put:
+      operationId: sla_policies_update
+      parameters:
+      - in: path
+        name: priority
+        schema:
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+          type: string
+          description: |-
+            * `critical` - Critical
+            * `high` - High
+            * `medium` - Medium
+            * `low` - Low
+        required: true
+      tags:
+      - sla-policies
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SLAPolicyRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SLAPolicy'
+          description: ''
+    patch:
+      operationId: sla_policies_partial_update
+      parameters:
+      - in: path
+        name: priority
+        schema:
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+          type: string
+          description: |-
+            * `critical` - Critical
+            * `high` - High
+            * `medium` - Medium
+            * `low` - Low
+        required: true
+      tags:
+      - sla-policies
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSLAPolicyRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SLAPolicy'
+          description: ''
+  /api/v1/users/:
+    get:
+      operationId: users_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+  /api/v1/users/{id}/:
+    get:
+      operationId: users_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: users_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUserUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserUpdate'
+          description: ''
+components:
+  schemas:
+    AdminUserUpdate:
+      type: object
+      properties:
+        full_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        is_active:
+          type: boolean
+    AssignRequest:
+      type: object
+      properties:
+        assignee_id:
+          type: integer
+          nullable: true
+      required:
+      - assignee_id
+    AuthResponse:
+      type: object
+      description: Shape of login/refresh responses (for the OpenAPI schema).
+      properties:
+        access:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - access
+      - user
+    Comment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        author:
+          allOf:
+          - $ref: '#/components/schemas/UserSummary'
+          readOnly: true
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        edited_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - author
+      - body
+      - created_at
+      - edited_at
+      - id
+    CommentRequest:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+      required:
+      - body
+    EventTypeEnum:
+      enum:
+      - created
+      - updated
+      - priority_changed
+      - assigned
+      - unassigned
+      - status_changed
+      - comment_added
+      - comment_edited
+      - comment_deleted
+      - sla_breached
+      - reminder_sent
+      type: string
+      description: |-
+        * `created` - Created
+        * `updated` - Updated
+        * `priority_changed` - Priority changed
+        * `assigned` - Assigned
+        * `unassigned` - Unassigned
+        * `status_changed` - Status changed
+        * `comment_added` - Comment added
+        * `comment_edited` - Comment edited
+        * `comment_deleted` - Comment deleted
+        * `sla_breached` - SLA breached
+        * `reminder_sent` - Reminder sent
+    IncidentCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 20000
+        priority:
+          allOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          default: medium
+        assignee_id:
+          type: integer
+          nullable: true
+      required:
+      - title
+    IncidentDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+          nullable: true
+        title:
+          type: string
+          readOnly: true
+        priority:
+          allOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/IncidentStatusEnum'
+          readOnly: true
+        sla_status:
+          allOf:
+          - $ref: '#/components/schemas/SlaStatusEnum'
+          readOnly: true
+        reporter:
+          allOf:
+          - $ref: '#/components/schemas/UserSummary'
+          readOnly: true
+        assignee:
+          allOf:
+          - $ref: '#/components/schemas/UserSummary'
+          readOnly: true
+        response_due_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        resolve_due_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        acknowledged_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        resolved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - acknowledged_at
+      - assignee
+      - closed_at
+      - created_at
+      - description
+      - id
+      - priority
+      - reference
+      - reporter
+      - resolve_due_at
+      - resolved_at
+      - response_due_at
+      - sla_status
+      - status
+      - title
+      - updated_at
+    IncidentEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        event_type:
+          allOf:
+          - $ref: '#/components/schemas/EventTypeEnum'
+          readOnly: true
+        actor:
+          allOf:
+          - $ref: '#/components/schemas/UserSummary'
+          readOnly: true
+        data:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - actor
+      - created_at
+      - data
+      - event_type
+      - id
+    IncidentList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+          nullable: true
+        title:
+          type: string
+          readOnly: true
+        priority:
+          allOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/IncidentStatusEnum'
+          readOnly: true
+        sla_status:
+          allOf:
+          - $ref: '#/components/schemas/SlaStatusEnum'
+          readOnly: true
+        reporter:
+          allOf:
+          - $ref: '#/components/schemas/UserSummary'
+          readOnly: true
+        assignee:
+          allOf:
+          - $ref: '#/components/schemas/UserSummary'
+          readOnly: true
+        response_due_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        resolve_due_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assignee
+      - created_at
+      - id
+      - priority
+      - reference
+      - reporter
+      - resolve_due_at
+      - response_due_at
+      - sla_status
+      - status
+      - title
+      - updated_at
+    IncidentReport:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/ReportKindEnum'
+          readOnly: true
+        period_start:
+          type: string
+          format: date-time
+          readOnly: true
+        period_end:
+          type: string
+          format: date-time
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ReportStatusEnum'
+          readOnly: true
+        data:
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+        requested_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - completed_at
+      - created_at
+      - data
+      - error
+      - id
+      - kind
+      - period_end
+      - period_start
+      - requested_by
+      - status
+    IncidentStatusEnum:
+      enum:
+      - open
+      - in_progress
+      - resolved
+      - closed
+      type: string
+      description: |-
+        * `open` - Open
+        * `in_progress` - In Progress
+        * `resolved` - Resolved
+        * `closed` - Closed
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+    MarkReadRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+        all:
+          type: boolean
+          default: false
+    MarkReadResult:
+      type: object
+      properties:
+        updated:
+          type: integer
+      required:
+      - updated
+    MeUpdate:
+      type: object
+      properties:
+        full_name:
+          type: string
+          maxLength: 150
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/NotificationKindEnum'
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        body:
+          type: string
+          readOnly: true
+        incident:
+          type: integer
+          readOnly: true
+          nullable: true
+        incident_reference:
+          type: string
+        read_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - body
+      - created_at
+      - id
+      - incident
+      - kind
+      - read_at
+      - title
+    NotificationKindEnum:
+      enum:
+      - incident_created
+      - incident_assigned
+      - priority_changed
+      - sla_breached
+      - reminder
+      - report
+      type: string
+      description: |-
+        * `incident_created` - Incident created
+        * `incident_assigned` - Incident assigned
+        * `priority_changed` - Priority changed
+        * `sla_breached` - SLA breached
+        * `reminder` - Reminder
+        * `report` - Report
+    PaginatedCommentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+    PaginatedIncidentEventList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentEvent'
+    PaginatedIncidentListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentList'
+    PaginatedNotificationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+    PaginatedReportListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportList'
+    PaginatedUserList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    PasswordChangeRequest:
+      type: object
+      properties:
+        old_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - new_password
+      - old_password
+    PatchedAdminUserUpdateRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        is_active:
+          type: boolean
+    PatchedCommentRequest:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+    PatchedIncidentUpdateRequest:
+      type: object
+      description: PATCH body. Status and assignee have their own endpoints, so they
+        are rejected here.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 20000
+        priority:
+          $ref: '#/components/schemas/PriorityEnum'
+    PatchedMeUpdateRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          maxLength: 150
+    PatchedSLAPolicyRequest:
+      type: object
+      properties:
+        response_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        resolution_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        reminder_interval_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+          description: Reminder cadence for unresolved incidents; empty = none.
+    PriorityEnum:
+      enum:
+      - critical
+      - high
+      - medium
+      - low
+      type: string
+      description: |-
+        * `critical` - Critical
+        * `high` - High
+        * `medium` - Medium
+        * `low` - Low
+    Register:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        full_name:
+          type: string
+          maxLength: 150
+      required:
+      - email
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        full_name:
+          type: string
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+    ReportKindEnum:
+      enum:
+      - daily
+      - weekly
+      - adhoc
+      type: string
+      description: |-
+        * `daily` - Daily
+        * `weekly` - Weekly
+        * `adhoc` - On demand
+    ReportList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/ReportKindEnum'
+          readOnly: true
+        period_start:
+          type: string
+          format: date-time
+          readOnly: true
+        period_end:
+          type: string
+          format: date-time
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ReportStatusEnum'
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+        requested_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - completed_at
+      - created_at
+      - error
+      - id
+      - kind
+      - period_end
+      - period_start
+      - requested_by
+      - status
+    ReportRequestRequest:
+      type: object
+      properties:
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+      required:
+      - period_end
+      - period_start
+    ReportStatusEnum:
+      enum:
+      - pending
+      - completed
+      - failed
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `completed` - Completed
+        * `failed` - Failed
+    RoleEnum:
+      enum:
+      - admin
+      - engineer
+      - viewer
+      type: string
+      description: |-
+        * `admin` - Admin
+        * `engineer` - Engineer
+        * `viewer` - Viewer
+    SLAPolicy:
+      type: object
+      properties:
+        priority:
+          allOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          readOnly: true
+        response_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        resolution_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        reminder_interval_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+          description: Reminder cadence for unresolved incidents; empty = none.
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - priority
+      - resolution_minutes
+      - response_minutes
+      - updated_at
+    SLAPolicyRequest:
+      type: object
+      properties:
+        response_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        resolution_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        reminder_interval_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+          description: Reminder cadence for unresolved incidents; empty = none.
+      required:
+      - resolution_minutes
+      - response_minutes
+    SlaStatusEnum:
+      enum:
+      - ok
+      - at_risk
+      - breached
+      type: string
+      description: |-
+        * `ok` - OK
+        * `at_risk` - At risk
+        * `breached` - Breached
+    TransitionRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/IncidentStatusEnum'
+        note:
+          type: string
+          default: ''
+          maxLength: 5000
+      required:
+      - status
+    UnreadCount:
+      type: object
+      properties:
+        unread:
+          type: integer
+      required:
+      - unread
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - date_joined
+      - email
+      - full_name
+      - id
+      - is_active
+      - role
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        full_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+      required:
+      - email
+      - id
+    UserSummaryRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        full_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+      required:
+      - email
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

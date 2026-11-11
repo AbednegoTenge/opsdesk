@@ -24,3 +24,6 @@ frontend/coverage/
 .idea/
 .vscode/
 .DS_Store
+
+# Local Redis snapshots
+dump.rdb
