@@ -58,15 +58,33 @@ is on another origin, add this app's origin to the API's `CORS_ALLOWED_ORIGINS`.
   instead of signing the user out.
 - **Logout** revokes the refresh token in Redis and clears the cookie and in-memory state.
 
+## Screens
+
+| Route | What it does |
+| --- | --- |
+| `/` | Dashboard: active, critical, SLA breached / at risk, unassigned; active by priority; created vs resolved trend; workload per engineer. Refreshes every minute. |
+| `/incidents` | Search, filter (status, priority, SLA, assignee), sort and page through incidents. Filters live in the URL, so a view can be bookmarked. |
+| `/incidents/new` | Create an incident with a priority and optional assignee. |
+| `/incidents/:id` | Edit title, description and priority; assign (or "Assign to me"); move through statuses with an optional note; comment; see the full activity history. Admins can delete. |
+| `/notifications` | Your notifications; opening one marks it read. The header bell shows the unread count (polled every 30 s). |
+| `/reports`, `/reports/:id` | Daily, weekly and on-demand reports. Admins can request a report for a date range; the page polls until the worker finishes it. |
+| `/users` | Admin: change roles, deactivate and reactivate accounts. |
+| `/settings/sla` | Admin: response and resolution targets and reminder interval per priority. |
+
+Server state is cached with TanStack Query; every change invalidates the lists, dashboard
+and history it affects, so screens stay consistent without a reload.
+
 ## Roles in the UI
 
 `src/components/navigation.ts` hides links a role can't use, and `RequireRole` routes show a
 403 page. This is convenience only: the API enforces every permission.
 
-| Page | Viewer | Engineer | Admin |
+| Capability | Viewer | Engineer | Admin |
 | --- | --- | --- | --- |
-| Dashboard, Incidents | yes | yes | yes |
-| Reports | | yes | yes |
+| Dashboard, incidents, notifications (read) | yes | yes | yes |
+| Create, edit, assign, change status, comment | | yes | yes |
+| Reports (read) | | yes | yes |
+| Request a report, delete incidents, reopen closed incidents | | | yes |
 | Users, SLA policies | | | yes |
 
 ## API types
@@ -86,6 +104,7 @@ src/
   api/          client (fetch + refresh), errors, session, generated schema types
   auth/         AuthProvider, useAuth, route guards, role helpers
   components/   layout, navigation, shared UI
-  pages/        route screens
+  lib/          formatting, labels, small hooks
+  pages/        route screens (incidents/ and admin/ grouped)
   test/         MSW fake API, test setup, render helper
 ```

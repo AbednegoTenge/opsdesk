@@ -3,6 +3,8 @@ import { setupServer } from "msw/node";
 
 import type { Role, User } from "@/api/types";
 
+import { byAssignee, summary, trends } from "./fixtures";
+
 export const API = "http://localhost:3000/api/v1";
 
 export function makeUser(role: Role = "engineer", overrides: Partial<User> = {}): User {
@@ -107,5 +109,14 @@ export const handlers = [
     return HttpResponse.json(backend.refreshUser);
   }),
 ];
+
+// Defaults for what every signed-in page loads: the unread count in the header and the
+// dashboard (the landing page). Tests override these with server.use().
+handlers.push(
+  http.get(`${API}/notifications/unread-count/`, () => HttpResponse.json({ unread: 0 })),
+  http.get(`${API}/dashboard/summary/`, () => HttpResponse.json(summary)),
+  http.get(`${API}/dashboard/by-assignee/`, () => HttpResponse.json(byAssignee)),
+  http.get(`${API}/dashboard/trends/`, () => HttpResponse.json(trends)),
+);
 
 export const server = setupServer(...handlers);
