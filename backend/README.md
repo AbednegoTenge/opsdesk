@@ -2,7 +2,7 @@
 
 Django REST API (and, from milestone 3, the Celery worker and Beat processes) for OpsDesk.
 
-## What is here (milestone 1)
+## What is here (milestones 1 and 2)
 
 | Area | Where |
 | --- | --- |
@@ -12,6 +12,24 @@ Django REST API (and, from milestone 3, the Celery worker and Beat processes) fo
 | Role permission classes | `apps/core/permissions.py` |
 | Health checks | `apps/core/health.py` |
 | Error envelope, pagination, JSON logging | `apps/core/` |
+| Incidents, comments, activity history, SLA policies | `apps/incidents/models.py` |
+| Incident business rules (one transaction per change) | `apps/incidents/services.py` |
+| Incident endpoints, search and filters | `apps/incidents/views.py`, `apps/incidents/filters.py` |
+
+## Incident rules
+
+* Every change goes through `apps/incidents/services.py`, which locks the incident row and writes
+  the matching `IncidentEvent` in the same transaction. If either write fails, both roll back.
+* Status moves: Open to In Progress or Resolved; In Progress to Resolved; Resolved to Closed or
+  back to In Progress; Closed to In Progress (Admins only). Anything else is a 400.
+* Starting work on an unassigned incident assigns it to whoever started it.
+* Status and assignee change only through `POST /incidents/{id}/transition/` and
+  `POST /incidents/{id}/assign/`; `PATCH` edits title, description and priority.
+* SLA due times come from `SLAPolicy` (seeded with defaults: Critical 15 min / 4 h, High 1 h / 8 h,
+  Medium 4 h / 24 h, Low 24 h / 72 h) and are recomputed from the creation time if priority changes.
+* List filters: `search`, `status`, `priority`, `sla_status` (comma-separated), `assignee`
+  (id, `me` or `none`), `reporter`, `created_after`, `created_before`, `ordering`
+  (`created_at`, `updated_at`, `priority`, `resolve_due_at`, each optionally prefixed with `-`).
 
 ## Requirements
 
