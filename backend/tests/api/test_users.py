@@ -1,7 +1,7 @@
 import pytest
 from django.conf import settings
 
-from apps.users.models import Role
+from apps.users.models import Role, User
 
 from ..factories import UserFactory
 
@@ -104,10 +104,84 @@ class TestUpdateUsers:
         assert client.put(detail(viewer), {}, format="json").status_code == 405
         assert client.delete(detail(viewer)).status_code == 405
 
-    def test_create_through_users_endpoint_not_allowed(self, admin, client_for):
-        assert client_for(admin).post(USERS, {}, format="json").status_code == 405
-
     def test_unknown_user_404(self, admin, client_for):
         res = client_for(admin).get(f"{USERS}999999/")
         assert res.status_code == 404
         assert res.data["error"]["code"] == "not_found"
+
+
+class TestCreateUsers:
+    PASSWORD = "Sturdy-pass-2026"
+
+    def payload(self, **extra):
+        return {
+            "email": "New.Engineer@Corp.io",
+            "full_name": "New Engineer",
+            "role": "engineer",
+            "password": self.PASSWORD,
+            **extra,
+        }
+
+    def test_admin_creates_engineer_who_can_sign_in(self, admin, client_for, api_client):
+        res = client_for(admin).post(USERS, self.payload(), format="json")
+        assert res.status_code == 201
+        assert res.data["email"] == "new.engineer@corp.io"
+        assert res.data["role"] == "engineer"
+        assert res.data["is_active"] is True
+        assert "password" not in res.data
+
+        login = api_client.post(
+            "/api/v1/auth/token/",
+            {"email": "new.engineer@corp.io", "password": self.PASSWORD},
+            format="json",
+        )
+        assert login.status_code == 200
+        assert login.data["user"]["role"] == "engineer"
+
+    @pytest.mark.parametrize("role", ["admin", "engineer", "viewer"])
+    def test_admin_can_pick_any_role(self, role, admin, client_for):
+        res = client_for(admin).post(USERS, self.payload(role=role), format="json")
+        assert res.status_code == 201
+        assert User.objects.get(email="new.engineer@corp.io").role == role
+
+    def test_role_defaults_to_engineer(self, admin, client_for):
+        body = self.payload()
+        del body["role"]
+        res = client_for(admin).post(USERS, body, format="json")
+        assert res.status_code == 201
+        assert res.data["role"] == "engineer"
+
+    def test_created_user_is_not_staff(self, admin, client_for):
+        client_for(admin).post(USERS, self.payload(role="admin"), format="json")
+        user = User.objects.get(email="new.engineer@corp.io")
+        assert not user.is_staff and not user.is_superuser
+
+    def test_works_when_self_registration_is_disabled(self, admin, client_for, settings):
+        settings.ALLOW_REGISTRATION = False
+        assert client_for(admin).post(USERS, self.payload(), format="json").status_code == 201
+
+    def test_duplicate_email_rejected(self, admin, client_for):
+        UserFactory(email="new.engineer@corp.io")
+        res = client_for(admin).post(USERS, self.payload(), format="json")
+        assert res.status_code == 400
+        assert "email" in res.data["error"]["details"]
+
+    def test_weak_password_rejected(self, admin, client_for):
+        res = client_for(admin).post(USERS, self.payload(password="123"), format="json")
+        assert res.status_code == 400
+        assert not User.objects.filter(email="new.engineer@corp.io").exists()
+
+    def test_invalid_role_rejected(self, admin, client_for):
+        res = client_for(admin).post(USERS, self.payload(role="superuser"), format="json")
+        assert res.status_code == 400
+        assert "role" in res.data["error"]["details"]
+
+    @pytest.mark.parametrize("who", ["engineer", "viewer"])
+    def test_non_admins_cannot_create_users(self, who, request, client_for):
+        actor = request.getfixturevalue(who)
+        res = client_for(actor).post(USERS, self.payload(), format="json")
+        assert res.status_code == 403
+        assert not User.objects.filter(email="new.engineer@corp.io").exists()
+
+    def test_unauthenticated(self, api_client):
+        assert api_client.post(USERS, self.payload(), format="json").status_code == 401

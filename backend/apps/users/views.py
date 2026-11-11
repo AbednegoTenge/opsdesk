@@ -23,6 +23,7 @@ from apps.core.throttling import (
 from . import token_store
 from .models import User
 from .serializers import (
+    AdminUserCreateSerializer,
     AdminUserUpdateSerializer,
     AuthResponseSerializer,
     LoginSerializer,
@@ -197,23 +198,37 @@ class PasswordChangeView(APIView):
 
 # --- user management --------------------------------------------------------
 class UserViewSet(
+    mixins.CreateModelMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
     queryset = User.objects.all()
-    http_method_names = ["get", "patch", "options"]
+    http_method_names = ["get", "post", "patch", "options"]
 
     def get_permissions(self):
-        if self.action in ("update", "partial_update"):
+        if self.action in ("create", "update", "partial_update"):
             return [IsAuthenticated(), IsAdmin()]
         return [IsAuthenticated(), IsEngineerOrAdmin()]
 
     def get_serializer_class(self):
+        if self.action == "create":
+            return AdminUserCreateSerializer
         if self.action in ("update", "partial_update"):
             return AdminUserUpdateSerializer
         return UserSerializer
+
+    @extend_schema(request=AdminUserCreateSerializer, responses={201: UserSerializer})
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        logger.info(
+            "user created by admin",
+            extra={"user_id": user.pk, "role": user.role, "created_by": request.user.pk},
+        )
+        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
         qs = super().get_queryset()

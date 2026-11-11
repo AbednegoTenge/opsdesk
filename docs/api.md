@@ -81,6 +81,7 @@ generated.
 | `GET /reports/`, `GET /reports/{id}/` | Generated reports; detail includes the figures |
 | `POST /reports/` | `{period_start, period_end}` (at most 366 days). Returns `202` with a pending report, or `200` if that exact period already has one. |
 | `GET /users/` | Users. Filters: `search`, `role`, `is_active` |
+| `POST /users/` | Admin creates an account: `email`, `full_name`, `password`, `role` (defaults to `engineer`). Works even when self-registration is off. |
 | `GET, PATCH /users/{id}/` | Change `full_name`, `role`, `is_active`; changing role or active status revokes the user's sessions. Admins can't demote or deactivate themselves. |
 
 Health endpoints sit outside `/api/v1/`: `GET /health/live` and `GET /health/ready`. See
@@ -98,6 +99,7 @@ Health endpoints sit outside `/api/v1/`: `GET /health/live` and `GET /health/rea
 | Reopen a closed incident | | | yes |
 | Delete incidents | | | yes |
 | List users (to pick an assignee) | | yes | yes |
+| Create users with any role | | | yes |
 | Change users' roles or status | | | yes |
 | Read reports | | yes | yes |
 | Request a report | | | yes |

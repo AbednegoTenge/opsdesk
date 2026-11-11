@@ -1,6 +1,7 @@
 /** Typed calls for each API resource, plus the React Query keys that cache them. */
 import { api } from "./client";
 import type {
+  AdminUserCreate,
   AdminUserUpdate,
   Comment,
   DashboardByAssignee,
@@ -119,6 +120,8 @@ export const users = {
     is_active?: string;
   }) =>
     api<Paginated<User>>("/users/", { query: params }),
+  create: (body: AdminUserCreate) =>
+    api<User>("/users/", { method: "POST", body: json(body) }),
   update: (id: number, body: AdminUserUpdate) =>
     api<User>(`/users/${id}/`, { method: "PATCH", body: json(body) }),
 };

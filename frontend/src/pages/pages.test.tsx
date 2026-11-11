@@ -195,6 +195,72 @@ describe("users (admin)", () => {
   });
 });
 
+describe("adding users (admin)", () => {
+  it("creates an engineer from the Users screen", async () => {
+    const user = userEvent.setup();
+    backend.refreshUser = { ...makeUser("admin"), id: 10 };
+    let posted: unknown;
+    server.use(
+      http.get(`${API}/users/`, () => HttpResponse.json(page([backend.refreshUser!]))),
+      http.post(`${API}/users/`, async ({ request }) => {
+        posted = await request.json();
+        return HttpResponse.json(
+          { ...makeUser("engineer"), id: 12, email: "new.eng@opsdesk.test" },
+          { status: 201 },
+        );
+      }),
+    );
+    renderApp("/users");
+
+    await user.click(await screen.findByRole("button", { name: "Add user" }));
+    const form = screen.getByRole("form", { name: "Add user" });
+    expect(within(form).getByLabelText("Role")).toHaveValue("engineer");
+    await user.type(within(form).getByLabelText("Full name"), "New Eng");
+    await user.type(within(form).getByLabelText("Email"), "new.eng@opsdesk.test");
+    await user.type(within(form).getByLabelText("Temporary password"), "Sturdy-pass-2026");
+    await user.click(within(form).getByRole("button", { name: "Create user" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Created new.eng@opsdesk.test as Engineer",
+    );
+    expect(posted).toEqual({
+      email: "new.eng@opsdesk.test",
+      full_name: "New Eng",
+      role: "engineer",
+      password: "Sturdy-pass-2026",
+    });
+    expect(screen.queryByRole("form", { name: "Add user" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the form open and shows the API's refusal", async () => {
+    const user = userEvent.setup();
+    backend.refreshUser = { ...makeUser("admin"), id: 10 };
+    server.use(
+      http.get(`${API}/users/`, () => HttpResponse.json(page([backend.refreshUser!]))),
+      http.post(`${API}/users/`, () =>
+        HttpResponse.json(
+          errorBody("validation_error", "Invalid input.", {
+            email: ["A user with this email already exists."],
+          }),
+          { status: 400 },
+        ),
+      ),
+    );
+    renderApp("/users");
+
+    await user.click(await screen.findByRole("button", { name: "Add user" }));
+    const form = screen.getByRole("form", { name: "Add user" });
+    await user.type(within(form).getByLabelText("Email"), "taken@opsdesk.test");
+    await user.type(within(form).getByLabelText("Temporary password"), "Sturdy-pass-2026");
+    await user.click(within(form).getByRole("button", { name: "Create user" }));
+
+    expect(await within(form).findByRole("alert")).toHaveTextContent(
+      "A user with this email already exists.",
+    );
+    expect(within(form).getByLabelText("Email")).toHaveValue("taken@opsdesk.test");
+  });
+});
+
 describe("SLA policies (admin)", () => {
   const policy: SlaPolicy = {
     priority: "medium",

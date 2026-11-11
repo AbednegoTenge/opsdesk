@@ -397,7 +397,7 @@ export interface paths {
         };
         get: operations["users_list"];
         put?: never;
-        post?: never;
+        post: operations["users_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -424,6 +424,15 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description An Admin creates an account directly, with any role and a starting password. */
+        AdminUserCreateRequest: {
+            /** Format: email */
+            email: string;
+            full_name?: string;
+            /** @default engineer */
+            role: components["schemas"]["RoleEnum"];
+            password: string;
+        };
         AdminUserUpdate: {
             full_name?: string;
             role?: components["schemas"]["RoleEnum"];
@@ -1588,6 +1597,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedUserList"];
+                };
+            };
+        };
+    };
+    users_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
                 };
             };
         };

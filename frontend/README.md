@@ -86,7 +86,7 @@ X-Frame-Options: DENY
 | `/incidents/:id` | Edit title, description and priority; assign (or "Assign to me"); move through statuses with an optional note; comment; see the full activity history. Admins can delete. |
 | `/notifications` | Your notifications; opening one marks it read. The header bell shows the unread count (polled every 30 s). |
 | `/reports`, `/reports/:id` | Daily, weekly and on-demand reports. Admins can request a report for a date range; the page polls until the worker finishes it. |
-| `/users` | Admin: change roles, deactivate and reactivate accounts. |
+| `/users` | Admin: add users with a role, change roles, deactivate and reactivate accounts. |
 | `/settings/sla` | Admin: response and resolution targets and reminder interval per priority. |
 
 Server state is cached with TanStack Query; every change invalidates the lists, dashboard

@@ -34,6 +34,31 @@ class AdminUserUpdateSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class AdminUserCreateSerializer(serializers.ModelSerializer):
+    """An Admin creates an account directly, with any role and a starting password."""
+
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+    role = serializers.ChoiceField(choices=Role.choices, default=Role.ENGINEER)
+
+    class Meta:
+        model = User
+        fields = ["email", "full_name", "role", "password"]
+
+    def validate_email(self, value: str) -> str:
+        value = value.strip().lower()
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
+    def validate(self, attrs):
+        candidate = User(email=attrs["email"], full_name=attrs.get("full_name", ""))
+        password_validation.validate_password(attrs["password"], user=candidate)
+        return attrs
+
+    def create(self, validated_data):
+        return User.objects.create_user(**validated_data)
+
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, trim_whitespace=False)
 
