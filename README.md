@@ -4,7 +4,7 @@ Incident management platform built as independently runnable components:
 
 | Component | Path | Process | Status |
 | --- | --- | --- | --- |
-| Backend API | `backend/` | Django REST Framework under any WSGI server | Milestones 1 to 4 done |
+| Backend API | `backend/` | Django REST Framework under any WSGI server | Milestones 1 to 5 done |
 | Background worker | `backend/` | `celery -A config worker` | Milestone 3 done |
 | Scheduler | `backend/` | `celery -A config beat` (exactly one replica) | Milestone 4 done |
 | Frontend | `frontend/` | React SPA, static files | Milestone 6 |
