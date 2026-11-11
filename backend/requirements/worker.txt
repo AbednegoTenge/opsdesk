@@ -1,0 +1,4 @@
+# Celery worker / beat processes. No web server.
+# simplejwt is needed only because the users app imports it at load time.
+-r base.txt
+djangorestframework-simplejwt>=5.3,<6

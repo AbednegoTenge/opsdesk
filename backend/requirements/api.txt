@@ -1,0 +1,6 @@
+# API process only (WSGI server, auth, CORS, schema).
+-r base.txt
+djangorestframework-simplejwt>=5.3,<6
+django-cors-headers>=4.4,<5
+drf-spectacular>=0.27,<1
+gunicorn>=22,<24

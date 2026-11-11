@@ -1,0 +1,7 @@
+# Local development and tests.
+-r api.txt
+pytest>=8,<10
+pytest-django>=4.8,<5
+factory-boy>=3.3,<4
+fakeredis>=2.23,<3
+ruff>=0.6
