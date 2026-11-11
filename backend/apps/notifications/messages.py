@@ -1,0 +1,76 @@
+"""Who hears about an incident event, and what they are told."""
+
+from dataclasses import dataclass
+
+from django.conf import settings
+
+from apps.incidents.models import EventType, Incident, IncidentEvent
+from apps.users.models import Role, User
+
+from .models import Kind
+
+
+@dataclass(frozen=True)
+class Message:
+    kind: str
+    subject: str
+    body: str
+
+
+def _link(incident: Incident) -> str:
+    return f"{settings.FRONTEND_BASE_URL.rstrip('/')}/incidents/{incident.pk}"
+
+
+def _summary(incident: Incident) -> str:
+    return (
+        f"{incident.reference}: {incident.title}\n"
+        f"Priority: {incident.get_priority_display()}  Status: {incident.get_status_display()}\n"
+        f"{_link(incident)}"
+    )
+
+
+def recipients_for(event: IncidentEvent) -> list[User]:
+    """People to notify about an event. The person who made the change is never notified."""
+    incident = event.incident
+    users: list[User] = []
+
+    if event.event_type == EventType.CREATED:
+        # The assignee, if any, hears about it through the separate ASSIGNED event.
+        users = list(User.objects.filter(role=Role.ADMIN, is_active=True))
+    elif event.event_type == EventType.ASSIGNED:
+        to = (event.data or {}).get("to") or {}
+        users = list(User.objects.filter(pk=to.get("id"), is_active=True))
+    elif event.event_type == EventType.PRIORITY_CHANGED:
+        ids = {incident.assignee_id, incident.reporter_id} - {None}
+        users = list(User.objects.filter(pk__in=ids, is_active=True))
+
+    return [u for u in users if u.pk != event.actor_id]
+
+
+def message_for(event: IncidentEvent) -> Message | None:
+    incident = event.incident
+    actor = event.actor.full_name or event.actor.email if event.actor else "OpsDesk"
+
+    if event.event_type == EventType.CREATED:
+        return Message(
+            Kind.INCIDENT_CREATED,
+            f"[OpsDesk] New {incident.get_priority_display()} incident {incident.reference}",
+            f"{actor} opened a new incident.\n\n{_summary(incident)}",
+        )
+    if event.event_type == EventType.ASSIGNED:
+        return Message(
+            Kind.INCIDENT_ASSIGNED,
+            f"[OpsDesk] {incident.reference} assigned to you: {incident.title}",
+            f"{actor} assigned this incident to you.\n\n{_summary(incident)}",
+        )
+    if event.event_type == EventType.PRIORITY_CHANGED:
+        old, new = event.data.get("from"), event.data.get("to")
+        return Message(
+            Kind.PRIORITY_CHANGED,
+            f"[OpsDesk] {incident.reference} priority changed to {new}",
+            f"{actor} changed the priority from {old} to {new}.\n\n{_summary(incident)}",
+        )
+    return None
+
+
+NOTIFYING_EVENTS = (EventType.CREATED, EventType.ASSIGNED, EventType.PRIORITY_CHANGED)

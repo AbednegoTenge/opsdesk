@@ -2,7 +2,7 @@
 
 Django REST API (and, from milestone 3, the Celery worker and Beat processes) for OpsDesk.
 
-## What is here (milestones 1 and 2)
+## What is here (milestones 1 to 3)
 
 | Area | Where |
 | --- | --- |
@@ -15,6 +15,9 @@ Django REST API (and, from milestone 3, the Celery worker and Beat processes) fo
 | Incidents, comments, activity history, SLA policies | `apps/incidents/models.py` |
 | Incident business rules (one transaction per change) | `apps/incidents/services.py` |
 | Incident endpoints, search and filters | `apps/incidents/views.py`, `apps/incidents/filters.py` |
+| Celery app, queues, routes, Beat schedule | `config/celery.py`, `CELERY_*` in `config/settings/base.py` |
+| Base task (retries, backoff, logging), outbox, worker/Beat health | `opsdesk_tasks/` |
+| Notification tasks, channels, in-app notifications API | `apps/notifications/` |
 
 ## Incident rules
 
@@ -70,10 +73,60 @@ DJANGO_SETTINGS_MODULE=config.settings.prod gunicorn config.wsgi:application --b
 Migrations are a separate one-off step (`python manage.py migrate`), never run at API startup,
 so replicas can start in parallel.
 
+## Background processing
+
+Three processes run from this same codebase, each started on its own:
+
+```bash
+# API (any number of replicas)
+gunicorn config.wsgi:application --bind 0.0.0.0:8000
+# Worker (any number of replicas; can be split per queue)
+celery -A config worker -Q notifications,sla,reports --loglevel=INFO
+# Scheduler (exactly ONE replica, or periodic tasks run twice)
+celery -A config beat --loglevel=INFO
+```
+
+`config/celery.py` defaults to `config.settings.prod`; for local runs export
+`DJANGO_SETTINGS_MODULE=config.settings.dev` first.
+
+How a notification flows:
+
+1. A service call (for example assigning an incident) writes the incident, its `IncidentEvent`
+   and an `OutboxMessage`, all in one transaction.
+2. After commit, the outbox row is published to Redis. If Redis is down the request still
+   succeeds, the row stays `pending`, and the `outbox.dispatch_pending` sweep (Beat, every
+   minute) publishes it once Redis is back.
+3. `notifications.notify_incident_event` creates one `NotificationDelivery` per recipient and
+   channel (in-app and email). Each has a unique `dedupe_key`, so running the task twice
+   creates nothing new.
+4. `notifications.deliver` locks its row (`FOR UPDATE NOWAIT`), skips rows already sent, and
+   sends. Transient errors (database, Redis, SMTP connection) retry with exponential backoff and
+   jitter, up to `TASK_MAX_RETRIES`; permanent errors and bugs fail at once. A delivery that
+   runs out of retries is marked `failed` with the last error.
+
+Who is notified: Admins about new incidents, the assignee when assigned, the assignee and
+reporter when priority changes. The person who made the change is never notified.
+
+Tasks use `acks_late` and `reject_on_worker_lost`, so a worker killed mid-task has its task
+redelivered; the dedupe rules make that redelivery harmless.
+
+Worker and Beat health: each touches a heartbeat file on a timer. Probe it with
+
+```bash
+python -m opsdesk_tasks.healthcheck worker --max-age 60   # exit 0 healthy, 1 not
+python -m opsdesk_tasks.healthcheck beat --max-age 60
+```
+
+This catches a process that is alive but stuck, not just one that has exited.
+
+For local debugging without a worker, `CELERY_TASK_ALWAYS_EAGER=true` runs tasks inline.
+
 ## Tests
 
 Tests use a real PostgreSQL database (they rely on its transaction behaviour) and an in-memory
-fake Redis, so only PostgreSQL needs to be running.
+fake Redis. Celery runs in eager mode with an in-memory broker, and tests use
+`django_capture_on_commit_callbacks` to check that tasks are published only after commit. Only
+PostgreSQL needs to be running.
 
 ```bash
 cd backend
