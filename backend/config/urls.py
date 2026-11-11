@@ -7,6 +7,7 @@ api_v1 = [
     path("auth/", include("apps.users.urls.auth")),
     path("users/", include("apps.users.urls.users")),
     path("", include("apps.incidents.urls")),
+    path("", include("apps.notifications.urls")),
     path("schema/", SpectacularAPIView.as_view(api_version="v1"), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]

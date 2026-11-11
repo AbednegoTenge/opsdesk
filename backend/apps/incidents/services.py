@@ -16,6 +16,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.users.models import Role, User
+from opsdesk_tasks import outbox
 
 from .models import (
     Comment,
@@ -65,10 +66,17 @@ def compute_due_times(priority: str, opened_at) -> DueTimes:
     )
 
 
+# Events that people are notified about. The task is published only after commit.
+NOTIFY_ON = {EventType.CREATED, EventType.ASSIGNED, EventType.PRIORITY_CHANGED}
+
+
 def _event(incident: Incident, actor: User | None, event_type: str, **data) -> IncidentEvent:
-    return IncidentEvent.objects.create(
+    event = IncidentEvent.objects.create(
         incident=incident, actor=actor, event_type=event_type, data=data
     )
+    if event_type in NOTIFY_ON:
+        outbox.enqueue("notifications.notify_incident_event", event_id=event.pk)
+    return event
 
 
 def _lock(incident_id: int) -> Incident:

@@ -31,6 +31,8 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.users",
     "apps.incidents",
+    "apps.notifications",
+    "opsdesk_tasks",
 ]
 
 MIDDLEWARE = [
@@ -147,6 +149,58 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="OpsDesk <no-reply@example.com>")
+
+# --- Celery (worker, Beat and the API's task publishing) --------------------
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default=REDIS_URL)
+CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_IGNORE_RESULT = True  # results live in PostgreSQL rows, not a result backend
+CELERY_TASK_ACKS_LATE = True  # a task killed mid-run is redelivered...
+CELERY_TASK_REJECT_ON_WORKER_LOST = True  # ...and tasks are idempotent, so that is safe
+CELERY_WORKER_PREFETCH_MULTIPLIER = env.int("CELERY_WORKER_PREFETCH_MULTIPLIER", default=1)
+CELERY_WORKER_CONCURRENCY = env.int("CELERY_WORKER_CONCURRENCY", default=4)
+CELERY_WORKER_MAX_TASKS_PER_CHILD = env.int("CELERY_WORKER_MAX_TASKS_PER_CHILD", default=500)
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False  # keep Django's JSON logging
+CELERY_TASK_TIME_LIMIT = env.int("CELERY_TASK_TIME_LIMIT", default=300)
+CELERY_TASK_SOFT_TIME_LIMIT = env.int("CELERY_TASK_SOFT_TIME_LIMIT", default=240)
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BROKER_CONNECTION_MAX_RETRIES = None  # keep retrying while Redis is down
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    # Must exceed the longest task + retry countdown, or Redis redelivers it early.
+    "visibility_timeout": env.int("CELERY_VISIBILITY_TIMEOUT", default=3600),
+    "socket_timeout": REDIS_SOCKET_TIMEOUT,
+    "socket_connect_timeout": REDIS_SOCKET_TIMEOUT,
+}
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+CELERY_BEAT_SCHEDULER = "opsdesk_tasks.health:HeartbeatScheduler"
+CELERY_BEAT_SCHEDULE_FILENAME = env(
+    "CELERY_BEAT_SCHEDULE_FILENAME",
+    default="/tmp/opsdesk-celerybeat-schedule",  # noqa: S108
+)
+CELERY_BEAT_SCHEDULE = {
+    "dispatch-outbox": {
+        "task": "outbox.dispatch_pending",
+        "schedule": env.int("OUTBOX_SWEEP_INTERVAL_SECONDS", default=60),
+    },
+}
+
+# Task retry policy for transient failures (opsdesk_tasks.base.OpsDeskTask).
+TASK_MAX_RETRIES = env.int("TASK_MAX_RETRIES", default=5)
+TASK_RETRY_BACKOFF_MAX = env.int("TASK_RETRY_BACKOFF_MAX", default=600)
+
+# Liveness files for worker and Beat health checks (opsdesk_tasks.healthcheck).
+WORKER_HEARTBEAT_FILE = env(
+    "WORKER_HEARTBEAT_FILE",
+    default="/tmp/opsdesk-worker-heartbeat",  # noqa: S108
+)
+BEAT_HEARTBEAT_FILE = env("BEAT_HEARTBEAT_FILE", default="/tmp/opsdesk-beat-heartbeat")  # noqa: S108
+WORKER_HEARTBEAT_INTERVAL = env.int("WORKER_HEARTBEAT_INTERVAL", default=15)
+
+# Outbox: rows still unpublished after this many seconds are re-sent by the sweep.
+OUTBOX_RETRY_AFTER_SECONDS = env.int("OUTBOX_RETRY_AFTER_SECONDS", default=60)
+
+# Links in notification emails point here.
+FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", default="http://localhost:5173")
 
 # --- I18N / static --------------------------------------------------------
 LANGUAGE_CODE = "en-us"
