@@ -22,6 +22,11 @@ spec:
       containers:
       - name: opsdesk-backend
         image: abednegotenge/opsdesk-backend:latest
+        envFrom: 
+          - configMapRef:
+              name: opsdesk-configmap
+          - secretRef:
+              name: opsdesk-secret
         resources:
           limits:
             memory: "500Mi"
