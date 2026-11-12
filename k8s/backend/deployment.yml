@@ -24,7 +24,7 @@ spec:
         image: abednegotenge/opsdesk-backend:latest
         envFrom: 
           - configMapRef:
-              name: opsdesk-configmap
+              name: opsdesk-config
           - secretRef:
               name: opsdesk-secret
         resources:
