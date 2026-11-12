@@ -21,6 +21,11 @@ spec:
       containers:
       - name: opsdesk-frontend
         image: abednegotenge/opsdesk-frontend:latest
+        envFrom:
+          - configMapRef:
+              name: opsdesk-config
+          - secretRef:
+              name: opsdesk-secret
         resources:
           limits:
             memory: "128Mi"
