@@ -1,0 +1,30 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opsdesk-backend
+  namespace: opsdesk
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: opsdesk-backend
+  template:
+    metadata:
+      labels:
+        app: opsdesk-backend
+    spec:
+      containers:
+      - name: opsdesk-backend
+        image: abednegotenge/opsdesk-backend:latest
+        resources:
+          limits:
+            memory: "500Mi"
+            cpu: "2000m"
+        ports:
+        - containerPort: 8000

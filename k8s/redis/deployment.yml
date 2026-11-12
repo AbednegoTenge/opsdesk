@@ -1,0 +1,25 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: opsdesk
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:alpine3.22
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 6379

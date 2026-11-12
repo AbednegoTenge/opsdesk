@@ -1,0 +1,28 @@
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: opsdesk-ingress
+  namespace: opsdesk
+  labels:
+    app.kubernetes.io/name: opsdesk-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+   - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: opsdesk-frontend
+            port: 
+              number: 8000
+
+      - path: "/api"
+        pathType: Prefix
+        backend:
+          service:
+            name: opsdesk-backend
+            port: 
+              number: 5000

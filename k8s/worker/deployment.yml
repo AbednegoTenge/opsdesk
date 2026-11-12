@@ -1,0 +1,32 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: opsdesk
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+      - name: worker
+        image: abednegotenge/opsdesk-backend:latest
+        command: ["celery", "-A", "config", "worker", "-Q", "notifications,sla,reports", "--loglevel=INFO"]
+        envFrom:
+          - configMapRef:
+              name: opsdesk-config
+          - secretRef:
+              name: opsdesk-secret
+        livenessProbe:
+          exec:
+            command: ["python", "-m", "opsdesk_tasks.healthcheck", "worker", "--max-age", "60"]
+          periodSeconds: 30
+      resources:
+        requests: { cpu: 70m, memory: 256Mi }
+        limits: { memory: 500Mi }

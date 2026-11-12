@@ -1,0 +1,95 @@
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opsdesk-config
+  namespace: opsdesk
+data:
+  # --- Core ---
+  DJANGO_SETTINGS_MODULE: config.settings.prod
+  DJANGO_DEBUG: "false"
+  DJANGO_ALLOWED_HOSTS: opsdesk.example.com,localhost
+  APP_ENV: production
+  LOG_LEVEL: INFO
+  LOG_FORMAT: json
+  APP_VERSION: ""
+
+  # --- PostgreSQL (DATABASE_URL itself is in the Secret) ---
+  DB_CONN_MAX_AGE: "60"
+  DB_CONNECT_TIMEOUT: "5"
+  HEALTH_DB_TIMEOUT_MS: "2000"
+
+  # --- Redis ---
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/1
+  CACHE_URL: redis://redis:6379/2
+  REDIS_SOCKET_TIMEOUT: "2"
+
+  # --- Celery ---
+  CELERY_WORKER_CONCURRENCY: "4"
+  CELERY_WORKER_PREFETCH_MULTIPLIER: "1"
+  CELERY_WORKER_MAX_TASKS_PER_CHILD: "500"
+  CELERY_TASK_TIME_LIMIT: "300"
+  CELERY_TASK_SOFT_TIME_LIMIT: "240"
+  CELERY_VISIBILITY_TIMEOUT: "3600"
+  CELERY_TASK_ALWAYS_EAGER: "false"
+  CELERY_BEAT_SCHEDULE_FILENAME: /tmp/opsdesk-celerybeat-schedule
+  TASK_MAX_RETRIES: "5"
+  TASK_RETRY_BACKOFF_MAX: "600"
+  OUTBOX_SWEEP_INTERVAL_SECONDS: "60"
+  OUTBOX_RETRY_AFTER_SECONDS: "60"
+  SLA_CHECK_INTERVAL_SECONDS: "60"
+  REMINDER_CHECK_INTERVAL_SECONDS: "300"
+  REPORT_HOUR_UTC: "7"
+
+  # --- Worker / Beat liveness files ---
+  WORKER_HEARTBEAT_FILE: /tmp/opsdesk-worker-heartbeat
+  WORKER_HEARTBEAT_INTERVAL: "15"
+  BEAT_HEARTBEAT_FILE: /tmp/opsdesk-beat-heartbeat
+
+  # --- Links in emails ---
+  FRONTEND_BASE_URL: https://opsdesk.example.com
+
+  # --- JWT (the signing key is in the Secret) ---
+  JWT_ALGORITHM: HS256
+  JWT_ISSUER: opsdesk
+  JWT_AUDIENCE: opsdesk-api
+  JWT_ACCESS_TTL_MINUTES: "15"
+  JWT_REFRESH_TTL_DAYS: "7"
+  REFRESH_TOKEN_KEY_PREFIX: opsdesk:refresh
+
+  # --- Refresh-token cookie (set SECURE to "true" once the Ingress has TLS) ---
+  REFRESH_COOKIE_NAME: opsdesk_refresh
+  REFRESH_COOKIE_SECURE: "false"
+  REFRESH_COOKIE_SAMESITE: Lax
+  REFRESH_COOKIE_DOMAIN: ""
+
+  # --- Rate limits; one ingress controller in front of the API ---
+  THROTTLE_AUTH_LOGIN: 20/minute
+  THROTTLE_AUTH_LOGIN_ACCOUNT: 10/minute
+  THROTTLE_AUTH_REFRESH: 120/minute
+  THROTTLE_AUTH_REGISTER: 10/hour
+  THROTTLE_AUTH_PASSWORD: 5/minute
+  NUM_PROXIES: "1"
+
+  # --- Origins ---
+  CORS_ALLOWED_ORIGINS: https://opsdesk.example.com
+  CSRF_TRUSTED_ORIGINS: https://opsdesk.example.com
+
+  # --- Accounts ---
+  ALLOW_REGISTRATION: "false"
+
+  # --- Email: console prints to the worker logs. For real email switch to
+  # django.core.mail.backends.smtp.EmailBackend and fill in the host settings. ---
+  EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+  EMAIL_HOST: smtp.example.com
+  EMAIL_PORT: "587"
+  EMAIL_HOST_USER: ""
+  EMAIL_USE_TLS: "true"
+  EMAIL_TIMEOUT: "10"
+  DEFAULT_FROM_EMAIL: OpsDesk <no-reply@example.com>
+
+  # --- HTTPS hardening (turn on once TLS works end to end) ---
+  SECURE_SSL_REDIRECT: "false"
+  SECURE_HSTS_SECONDS: "0"
+  SECURE_HSTS_INCLUDE_SUBDOMAINS: "false"

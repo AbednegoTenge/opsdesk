@@ -1,0 +1,12 @@
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: opsdesk-backend
+  namespace: opsdesk
+spec:
+  selector:
+    app: opsdesk-backend
+  ports:
+  - port: 5000
+    targetPort: 8000

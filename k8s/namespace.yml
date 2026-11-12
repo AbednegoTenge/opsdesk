@@ -1,0 +1,8 @@
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: opsdesk
+  labels:
+    app: opsdesk
+    environment: development
