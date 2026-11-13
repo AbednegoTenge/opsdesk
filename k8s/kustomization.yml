@@ -14,4 +14,4 @@ resources:
   - redis/service.yml
   - ingress/ingress.yml
   - config/configmap.yml
-  - secrets/secret.yml
+  # The Secret is not in git: create it with kubectl first (see secrets/secret.example.yml).
