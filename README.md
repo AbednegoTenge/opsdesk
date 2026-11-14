@@ -19,6 +19,18 @@ The components share only PostgreSQL and Redis. The frontend talks to the API on
 Kubernetes manifests for deploying every component are in [`k8s/`](k8s/), and the problems I
 hit deploying them are written up in [docs/kubernetes-troubleshooting.md](docs/kubernetes-troubleshooting.md).
 
+## Architecture
+
+![OpsDesk running on Kubernetes](docs/images/kubernetes-architecture.png)
+
+Browser traffic enters through the NGINX Ingress Controller, which sends `/` to the frontend
+Service and `/api` to the backend Service. Everything except the database runs in the
+`opsdesk` namespace: the frontend and backend Deployments, Redis, the Celery worker
+Deployment and a single Celery beat pod. The backend, worker and beat all use Redis as the
+Celery broker and Amazon RDS for PostgreSQL as the database, which lives outside the cluster.
+The replica counts in the diagram are illustrative; the real ones are set in the manifests in
+[`k8s/`](k8s/). More detail is in [docs/architecture.md](docs/architecture.md).
+
 ## Features
 
 - Sign-in with JWT access tokens and rotating, revocable refresh tokens in an httpOnly cookie
