@@ -19,6 +19,7 @@ frontend/coverage/
 .env
 .env.*
 !.env.example
+secrets.yml
 
 # Editors / OS
 .idea/
