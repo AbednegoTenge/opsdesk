@@ -5,7 +5,7 @@ metadata:
   name: redis
   namespace: opsdesk
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: redis
