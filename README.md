@@ -16,8 +16,8 @@ The components share only PostgreSQL and Redis. The frontend talks to the API on
 `/api/v1/`. Configuration comes entirely from environment variables, documented in
 [`backend/.env.example`](backend/.env.example) and [`frontend/.env.example`](frontend/.env.example).
 
-Containerization, infrastructure and deployment are intentionally out of scope for this
-repository.
+Kubernetes manifests for deploying every component are in [`k8s/`](k8s/), and the problems I
+hit deploying them are written up in [docs/kubernetes-troubleshooting.md](docs/kubernetes-troubleshooting.md).
 
 ## Features
 
@@ -72,5 +72,6 @@ cd frontend && npm test       # 72 tests with Vitest, Testing Library and MSW
 | [docs/database.md](docs/database.md) | Tables, constraints, indexes, the incident lifecycle and how concurrency is handled |
 | [docs/api.md](docs/api.md) | Conventions, error envelope, authentication, endpoints and the permission matrix |
 | [docs/background-processing.md](docs/background-processing.md) | Queues, tasks, the transactional outbox, retries, idempotency and liveness |
+| [docs/kubernetes-troubleshooting.md](docs/kubernetes-troubleshooting.md) | Problems hit deploying to Kubernetes and how `kubectl logs` and `describe` found them |
 | [backend/README.md](backend/README.md) | Running and testing the API, worker and scheduler |
 | [frontend/README.md](frontend/README.md) | Running, configuring and testing the SPA |
