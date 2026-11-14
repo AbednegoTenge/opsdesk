@@ -20,6 +20,7 @@ frontend/coverage/
 .env.*
 !.env.example
 secrets.yml
+k8s/secrets/secret.yml
 
 # Editors / OS
 .idea/
